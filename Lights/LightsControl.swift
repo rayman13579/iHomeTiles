@@ -18,61 +18,129 @@ struct LightsControl: ControlWidget {
             provider: Provider()
         ) { value in
             ControlWidgetToggle(
-                "Start Timer",
-                isOn: value.isRunning,
-                action: StartTimerIntent(value.name),
-                valueLabel: { isRunning in
-                    Label(isRunning ? "On" : "Off", systemImage: "timer")
+                value.light.rawValue,
+                isOn: LightState.on == value.state,
+                action: ToggleLightIntent(value.light),
+                valueLabel: { _ in
+                    Label(value.state.label, systemImage: value.state.image)
                 }
             )
+            .tint(.yellow)
         }
-        .displayName("Timer")
-        .description("A an example control that runs a timer.")
+        .displayName("Lights")
+        .description("Choose Light.")
     }
 }
 
 extension LightsControl {
     struct Value {
-        var isRunning: Bool
-        var name: String
+        var light: LightType
+        var state: LightState
     }
 
     struct Provider: AppIntentControlValueProvider {
-        func previewValue(configuration: TimerConfiguration) -> Value {
-            LightsControl.Value(isRunning: false, name: configuration.timerName)
+        func previewValue(configuration: LightConfiguration) -> Value {
+            LightsControl.Value(light: configuration.light, state: LightState.on)
         }
 
-        func currentValue(configuration: TimerConfiguration) async throws -> Value {
-            let isRunning = true // Check if the timer is running
-            return LightsControl.Value(isRunning: isRunning, name: configuration.timerName)
+        func currentValue(configuration: LightConfiguration) async throws -> Value {
+            //check backend if light is on
+            let state = getRandomState()
+            print("Getting new state")
+            print(state)
+            return LightsControl.Value(light: configuration.light, state: state)
+        }
+        
+        func getRandomState() -> LightState {
+            let state = Int.random(in: 0..<3)
+            switch state {
+            case 0: return LightState.off
+            case 1: return LightState.on
+            default: return LightState.on
+            }
         }
     }
 }
 
-struct TimerConfiguration: ControlConfigurationIntent {
-    static var title: LocalizedStringResource { "Timer Name Configuration" }
+struct LightConfiguration: ControlConfigurationIntent {
+    static var title: LocalizedStringResource { "Choose Light" }
 
-    @Parameter(title: "Timer Name", default: "Timer")
-    var timerName: String
+    @Parameter(title: "Light", default: LightType.hall)
+    var light: LightType
 }
 
-struct StartTimerIntent: SetValueIntent {
-    static var title: LocalizedStringResource { "Start a timer" }
-
-    @Parameter(title: "Timer Name")
-    var name: String
-
-    @Parameter(title: "Timer is running")
+struct ToggleLightIntent: SetValueIntent {
+    static var title: LocalizedStringResource { "Toggle Light" }
+    
+    @Parameter(title: "On")
     var value: Bool
+
+    @Parameter(title: "Light")
+    var light: LightType
+
+    @Parameter(title: "State")
+    var state: LightState
 
     init() {}
 
-    init(_ name: String) {
-        self.name = name
+    init(_ light: LightType) {
+        self.light = light
     }
 
     func perform() async throws -> some IntentResult {
-        // Start the timer…
+        //toggle light here?
         return .result()
+    }
+}
+
+enum LightState: String, AppEnum {
+    case on, off
+    
+    var label: String {
+        switch self {
+        case .on: return "On"
+        case .off: return "Off"
+        }
+    }
+    
+    var image: String {
+        switch self {
+        case .on: return "warninglight.fill"
+        case .off: return "warninglight"
+        }
+    }
+    
+    static var typeDisplayRepresentation: TypeDisplayRepresentation {
+        "LightState"
+    }
+    
+    static var caseDisplayRepresentations: [LightState : DisplayRepresentation] {
+        [
+            .on: DisplayRepresentation(title: "On"),
+            .off: DisplayRepresentation(title: "Off"),
+        ]
+    }
+}
+
+enum LightType: String, AppEnum {
+    
+    case hall = "Hall"
+    case office = "Office"
+    case kitchen = "Kitchen"
+    case led = "Led"
+    case room = "Room"
+    
+    static var typeDisplayRepresentation: TypeDisplayRepresentation {
+        "LightType"
+    }
+    
+    static var caseDisplayRepresentations: [LightType : DisplayRepresentation] {
+        [
+            .hall: DisplayRepresentation(title: "Hall"),
+            .office: DisplayRepresentation(title: "Office"),
+            .kitchen: DisplayRepresentation(title: "Kitchen"),
+            .led: DisplayRepresentation(title: "Led"),
+            .room: DisplayRepresentation(title: "Room")
+        ]
     }
 }
