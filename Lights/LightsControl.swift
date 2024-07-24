@@ -20,7 +20,7 @@ struct LightsControl: ControlWidget {
             ControlWidgetToggle(
                 value.light.rawValue,
                 isOn: LightState.on == value.state,
-                action: ToggleLightIntent(value.light),
+                action: ToggleLightIntent(value.light.rawValue),
                 valueLabel: { _ in
                     Label(value.state.label, systemImage: value.state.image)
                 }
@@ -56,7 +56,7 @@ extension LightsControl {
             switch state {
             case 0: return LightState.off
             case 1: return LightState.on
-            default: return LightState.on
+            default: return LightState.unknown
             }
         }
     }
@@ -76,15 +76,12 @@ struct ToggleLightIntent: SetValueIntent {
     var value: Bool
 
     @Parameter(title: "Light")
-    var light: LightType
-
-    @Parameter(title: "State")
-    var state: LightState
+    var name: String
 
     init() {}
 
-    init(_ light: LightType) {
-        self.light = light
+    init(_ name: String) {
+        self.name = name
     }
 
     func perform() async throws -> some IntentResult {
@@ -94,12 +91,13 @@ struct ToggleLightIntent: SetValueIntent {
 }
 
 enum LightState: String, AppEnum {
-    case on, off
+    case on, off, unknown
     
     var label: String {
         switch self {
         case .on: return "On"
         case .off: return "Off"
+        case .unknown: return "Unknown"
         }
     }
     
@@ -107,6 +105,7 @@ enum LightState: String, AppEnum {
         switch self {
         case .on: return "warninglight.fill"
         case .off: return "warninglight"
+        case .unknown: return "exclamationmark.warninglight"
         }
     }
     
@@ -118,6 +117,7 @@ enum LightState: String, AppEnum {
         [
             .on: DisplayRepresentation(title: "On"),
             .off: DisplayRepresentation(title: "Off"),
+            .unknown: DisplayRepresentation(title: "Unknown"),
         ]
     }
 }
