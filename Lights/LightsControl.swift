@@ -44,11 +44,10 @@ extension LightsControl {
         }
 
         func currentValue(configuration: LightConfiguration) async throws -> Value {
-            //check backend if light is on
-            let state = getRandomState()
-            print("Getting new state")
-            print(state)
-            return LightsControl.Value(light: configuration.light, state: state)
+            let (data, response) = try await URLSession.shared.data(from: URL(string: "http://10.0.0." + configuration.light.ip + "/rpc/Switch.GetStatus?id=0")!)
+            print(data)
+            print(response)
+            return LightsControl.Value(light: configuration.light, state: getRandomState())
         }
         
         func getRandomState() -> LightState {
@@ -103,9 +102,9 @@ enum LightState: String, AppEnum {
     
     var image: String {
         switch self {
-        case .on: return "warninglight.fill"
-        case .off: return "warninglight"
-        case .unknown: return "exclamationmark.warninglight"
+            case .on: return "warninglight.fill"
+            case .off: return "warninglight"
+            case .unknown: return "exclamationmark.warninglight"
         }
     }
     
@@ -129,6 +128,16 @@ enum LightType: String, AppEnum {
     case kitchen = "Kitchen"
     case led = "Led"
     case room = "Room"
+    
+    var ip: String {
+        switch self {
+            case .hall: return "116"
+            case .office: return "115"
+            case .kitchen: return "113"
+            case .led: return "114"
+            case .room: return "117"
+        }
+    }
     
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
         "LightType"
