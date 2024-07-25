@@ -40,23 +40,19 @@ extension LightsControl {
 
     struct Provider: AppIntentControlValueProvider {
         func previewValue(configuration: LightConfiguration) -> Value {
-            LightsControl.Value(light: configuration.light, state: LightState.on)
+            LightsControl.Value(light: configuration.light, state: LightState.unknown)
         }
 
         func currentValue(configuration: LightConfiguration) async throws -> Value {
-            let (data, response) = try await URLSession.shared.data(from: URL(string: "http://10.0.0." + configuration.light.ip + "/rpc/Switch.GetStatus?id=0")!)
-            print(data)
-            print(response)
-            return LightsControl.Value(light: configuration.light, state: getRandomState())
-        }
-        
-        func getRandomState() -> LightState {
-            let state = Int.random(in: 0..<3)
-            switch state {
-            case 0: return LightState.off
-            case 1: return LightState.on
-            default: return LightState.unknown
+            var getRequest = URLRequest(url: URL(string: "https://lights.rayman.me/status?shelly=" + configuration.light.rawValue)!)
+            getRequest.httpMethod = "GET"
+            getRequest.setValue("key", forHTTPHeaderField: "authorization")
+            if let (data, _) = try? await URLSession.shared.data(for: getRequest) {
+                if let isOn = String(data: data, encoding: .utf8), !isOn.isEmpty {
+                    return LightsControl.Value(light: configuration.light, state: isOn == "true" ? LightState.on : LightState.off)
+                }
             }
+            return LightsControl.Value(light: configuration.light, state: LightState.unknown)
         }
     }
 }
@@ -84,7 +80,20 @@ struct ToggleLightIntent: SetValueIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        //toggle light here?
+        var putRequest = URLRequest(url: URL(string: "https://lights.rayman.me/status")!)
+        putRequest.httpMethod = "PUT"
+        putRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        putRequest.setValue("key", forHTTPHeaderField: "authorization")
+        putRequest.httpBody = """
+            {
+                "shelly": "\(name)",
+                "on": "\(value)"
+            }
+        """.data(using: .utf8)
+        _ = try? await URLSession.shared.data(for: putRequest)
+        if (LightType.kitchen.rawValue == name) {
+            ControlCenter.shared.reloadControls(ofKind: "at.rayman.HomeTiles.Lights")
+        }
         return .result()
     }
 }
@@ -128,16 +137,6 @@ enum LightType: String, AppEnum {
     case kitchen = "Kitchen"
     case led = "Led"
     case room = "Room"
-    
-    var ip: String {
-        switch self {
-            case .hall: return "116"
-            case .office: return "115"
-            case .kitchen: return "113"
-            case .led: return "114"
-            case .room: return "117"
-        }
-    }
     
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
         "LightType"
